@@ -21,8 +21,6 @@ public class Mensaje implements Serializable {
     private Usuario remitente;
     private Usuario destinatario;
     
-    private String prueba;
-    
     /**
      *Constructor de la clase mensaje que inicializa todas las variables de la clase
      * @param tipo tipo describe el modo en que se tratara al mensaje
