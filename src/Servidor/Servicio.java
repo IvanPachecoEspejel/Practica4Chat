@@ -19,5 +19,16 @@ public class Servicio {
         
     }
     
-    
+    public class Cliente implements Runnable{
+        
+        public Cliente (){
+            
+        }
+
+        @Override
+        public void run() {
+            
+        }
+        
+    }
 }
