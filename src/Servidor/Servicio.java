@@ -6,22 +6,28 @@
 
 package Servidor;
 
+import DTO.Mensaje;
+import Utileria.Utileria;
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 
 /**
- *Clase que contiene los metodos necesarios para manejar el comportamiento de un servidor de un chat
+ *Clase que contiene los metodos necesarios para manejar el comportamiento de un cliente de un chat
  * @author ivan
  */
 public class Servicio {
     
     private MulticastSocket ms;
+    private InetAddress grupo;
     
     private String HOST_GRUPO;
     private String HOST_LOCAL;
     private int PUERTO;
+    
+    private final int TAM_MNSJ;
     
     /**
      * Constructor que inicializa la ip del grupo a unirse y el puerto de comunicación
@@ -32,6 +38,8 @@ public class Servicio {
         this.HOST_GRUPO = grupo;
         this.PUERTO = puerto;
         this.HOST_LOCAL = null;
+        this.grupo = null;
+        this.TAM_MNSJ = 10;
     }
     
     /**
@@ -43,6 +51,8 @@ public class Servicio {
         this.HOST_GRUPO = "230.1.1.1";
         this.PUERTO = 4000;
         this.HOST_LOCAL = null;
+        this.grupo = null;
+        this.TAM_MNSJ = 10;
     }    
     
     /**
@@ -52,7 +62,7 @@ public class Servicio {
      */
     public void unirAlGrupo() throws IOException, UnknownHostException{
         this.setMs(new MulticastSocket(this.getPUERTO()));
-        InetAddress grupo = this.validarDireccionDelGrupo();
+        this.setGrupo(this.validarDireccionDelGrupo());
         this.getMs().joinGroup(grupo);
         System.out.println("Se ha logrado unir al grupo con la ip : "+this.getHOST_GRUPO()+" con el puerto: "+this.getPUERTO());
     }
@@ -62,13 +72,60 @@ public class Servicio {
      * @return Un objeto InetAddres que contiene la dirección ip del grupo
      * @throws UnknownHostException Lanza esta excepción cuando no pueda encontrar la ip del grupo
      */
-    public InetAddress validarDireccionDelGrupo() throws UnknownHostException{
+    private InetAddress validarDireccionDelGrupo() throws UnknownHostException{
         this.setHOST_LOCAL(InetAddress.getLocalHost().getHostAddress());
         return InetAddress.getByName(this.getHOST_GRUPO());
     }
     
-    public void enviarMensaje(String mensaje){
-        
+    /**
+     * Funcion que envia un mensaje a todos los usuarios que esten unidos al grupo
+     * @param mensaje
+     * @throws IOException
+     */
+    public void enviarMensaje(Mensaje mensaje) throws IOException{
+        byte[] mensajeBytes = Utileria.serailizarObjeto(mensaje);
+        this.enviarTamanioMensaje(mensajeBytes.length, this.getGrupo());
+        DatagramPacket paquete = new DatagramPacket(mensajeBytes,mensajeBytes.length,this.getGrupo(),this.getPUERTO());
+        this.getMs().send(paquete);
+    }
+    
+    /**
+     * Función para enviar el tamaño de un mensaje hacia una ip cualquiera
+     * @param tamanio tamanio representa el tamaño del mensaje a enviar
+     * @param ip ip es la dirección a quien se va a enviar
+     * @throws IOException 
+     */
+    private void enviarTamanioMensaje(Integer tamanio, InetAddress ip) throws IOException{
+        byte[] tamanioBytes = Utileria.serailizarObjeto(tamanio);
+        DatagramPacket paquete = new DatagramPacket(tamanioBytes,tamanioBytes.length,ip,this.getPUERTO());
+        this.getMs().send(paquete);
+    }
+    
+    /**
+     * Funcion que recibir un mensaje
+     * @return Regresa el mensjae que se le fue enviado a este cliente
+     * @throws IOException
+     * @throws java.lang.ClassNotFoundException
+     */
+    public Mensaje recibirMensaje() throws IOException, ClassNotFoundException{
+        int tamanio = this.recibirTamanioMensaje();
+        byte[] mensajeBytes = new byte[tamanio];
+        DatagramPacket paquete = new DatagramPacket(mensajeBytes,tamanio);
+        this.getMs().receive(paquete);
+        return (Mensaje)Utileria.deseralizarObjeto(paquete.getData());
+    }
+    
+    /**
+     * Función para recibir el tamaño de un mensaje
+     * @return Regresa el tamaño del mensaje que esta por recibirse
+     * @throws IOException 
+     * @throws java.lang.ClassNotFoundException 
+     */
+    private int recibirTamanioMensaje() throws IOException, ClassNotFoundException{
+        byte[] tamanioBytes = new byte[this.TAM_MNSJ];
+        DatagramPacket paquete = new DatagramPacket(tamanioBytes,tamanioBytes.length);
+        this.getMs().receive(paquete);
+        return (int)Utileria.deseralizarObjeto(paquete.getData());
     }
 
     //<editor-fold desc="Geters y Seters">
@@ -127,17 +184,33 @@ public class Servicio {
     public void setHOST_LOCAL(String HOST_LOCAL) {
         this.HOST_LOCAL = HOST_LOCAL;
     }
+
+    /**
+     * @return the grupo
+     */
+    public InetAddress getGrupo() {
+        return grupo;
+    }
+
+    /**
+     * @param grupo the grupo to set
+     */
+    public void setGrupo(InetAddress grupo) {
+        this.grupo = grupo;
+    }
     
     //</editor-fold>
     
-    public class Cliente implements Runnable{
+    public class EscucharMensajes implements Runnable{
         
-        public Cliente (){
-            
+        MulticastSocket ms;
+        
+        public EscucharMensajes (MulticastSocket ms){
+            this.ms = ms;
         }
 
         @Override
-        public void run() {
+        public void run(){
             
         }
         
